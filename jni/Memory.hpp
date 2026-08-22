@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <unistd.h>
 #include <sys/mman.h>
 #include <android/log.h>
 
