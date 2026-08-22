@@ -1,0 +1,158 @@
+name: Crystal Guideline — Android Build
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'jni/**'
+      - 'smali/**'
+      - 'patch.sh'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: 'Direct download URL of the base 8BP APK (optional, for full patch build)'
+        required: false
+        default: ''
+
+env:
+  NDK_VERSION: '26.3.11579264'
+  CMAKE_VERSION: '3.22.1'
+  BUILD_TYPE: Release
+  ANDROID_API: '21'
+  ABI: arm64-v8a
+
+jobs:
+  # ─── Job 1: Compile libcrystal_guideline.so ─────────────────
+  build-native:
+    name: Build Native (.so)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Android NDK via sdkmanager (fastest path on ubuntu-latest)
+      - name: Set up Android SDK + NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK ${{ env.NDK_VERSION }}
+        run: sdkmanager "ndk;${{ env.NDK_VERSION }}"
+
+      - name: Install Ninja
+        run: sudo apt-get install -y ninja-build
+
+      - name: Configure cmake
+        run: |
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}"
+          cmake \
+            -S jni/ \
+            -B .build/ \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_PATH/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=${{ env.ABI }} \
+            -DANDROID_PLATFORM=android-${{ env.ANDROID_API }} \
+            -DANDROID_STL=none \
+            -G Ninja
+
+      - name: Build
+        run: cmake --build .build/ --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Verify .so
+        run: |
+          SO=".build/libcrystal_guideline.so"
+          ls -lh "$SO"
+          file "$SO"
+          # Confirm it's ARM64 ELF shared object
+          file "$SO" | grep -q "ARM aarch64" \
+            || (echo "ERROR: not an ARM64 shared lib" && exit 1)
+
+      - name: Upload .so artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libcrystal_guideline-arm64
+          path: .build/libcrystal_guideline.so
+          retention-days: 30
+
+  # ─── Job 2: Full APK patch (only when apk_url provided) ─────
+  patch-apk:
+    name: Patch APK (optional)
+    runs-on: ubuntu-latest
+    needs: build-native
+    if: ${{ github.event.inputs.apk_url != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apktool + dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq openjdk-17-jdk zipalign apksigner python3
+
+          # Install apktool latest
+          wget -q https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar \
+               -O /usr/local/bin/apktool.jar
+          wget -q https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool \
+               -O /usr/local/bin/apktool
+          chmod +x /usr/local/bin/apktool
+
+      - name: Download base APK
+        run: |
+          wget -q "${{ github.event.inputs.apk_url }}" -O base.apk
+          ls -lh base.apk
+          file base.apk | grep -q "Zip archive" \
+            || (echo "Download failed or not a valid APK" && exit 1)
+
+      - name: Download compiled .so
+        uses: actions/download-artifact@v4
+        with:
+          name: libcrystal_guideline-arm64
+          path: dist/
+
+      - name: Run patch.sh
+        run: |
+          chmod +x patch.sh
+          ./patch.sh base.apk
+
+      - name: Upload patched APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: crystal_guideline_patched
+          path: dist/crystal_patched_signed.apk
+          retention-days: 14
+
+  # ─── Job 3: Release (on version tag) ─────────────────────────
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build-native
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download .so
+        uses: actions/download-artifact@v4
+        with:
+          name: libcrystal_guideline-arm64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: libcrystal_guideline.so
+          name: "Crystal Guideline ${{ github.ref_name }}"
+          body: |
+            ## Crystal Guideline ${{ github.ref_name }}
+            
+            ### Files
+            - `libcrystal_guideline.so` — ARM64 native library (inject via patch.sh)
+            
+            ### Usage
+            ```bash
+            # 1. Download this .so to dist/
+            # 2. Run patch.sh with your 8BP APK:
+            ./patch.sh 8ballpool.apk
+            ```
+            
+            ### Modes
+            - **Ghost Ball** — shows ghost ball + tangent predictor
+            - **Line Extender** — extends shot line with wall bounces (up to 3)

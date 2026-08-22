@@ -1,0 +1,27 @@
+# Build output
+.build/
+dist/*.so
+dist/*.apk
+dist/work/
+
+# Keystore (NEVER commit this)
+keystore/
+
+# macOS
+.DS_Store
+
+# NDK/CMake
+*.ninja
+*.ninja_deps
+*.ninja_log
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# Android Studio
+.idea/
+*.iml
+local.properties
+
+# Logs
+*.log
