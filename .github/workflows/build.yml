@@ -52,7 +52,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$NDK_PATH/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=${{ env.ABI }} \
             -DANDROID_PLATFORM=android-${{ env.ANDROID_API }} \
-            -DANDROID_STL=none \
+            -DANDROID_STL=c+ \
             -G Ninja
 
       - name: Build
