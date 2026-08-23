@@ -9,7 +9,7 @@ add_library(crystal_guideline SHARED
     # All other .hpp are header-only — no separate .cpp needed
 )
 
-target_include_directories(crystal PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(crystal_guideline PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 find_library(log-lib  log)
 find_library(android-lib android)
