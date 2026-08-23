@@ -23,7 +23,7 @@ env:
   ABI: arm64-v8a
 
 jobs:
-  # ─── Job 1: Compile libcrystal.so ─────────────────
+  # ─── Job 1: Compile libcrystal_guideline.so ─────────────────
   build-native:
     name: Build Native (.so)
     runs-on: ubuntu-latest
@@ -60,7 +60,7 @@ jobs:
 
       - name: Verify .so
         run: |
-          SO=".build/libcrystal.so"
+          SO=".build/libcrystal_guideline.so"
           ls -lh "$SO"
           file "$SO"
           # Confirm it's ARM64 ELF shared object
@@ -71,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: libcrystal_guideline-arm64
-          path: .build/libcrystal.so
+          path: .build/libcrystal_guideline.so
           retention-days: 30
 
   # ─── Job 2: Full APK patch (only when apk_url provided) ─────
@@ -138,13 +138,13 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: libcrystal.so
+          files: libcrystal_guideline.so
           name: "Crystal Guideline ${{ github.ref_name }}"
           body: |
             ## Crystal Guideline ${{ github.ref_name }}
             
             ### Files
-            - `libcrystal.so` — ARM64 native library (inject via patch.sh)
+            - `libcrystal_guideline.so` — ARM64 native library (inject via patch.sh)
             
             ### Usage
             ```bash
