@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: android-actions/checkout@v4
 
       # Android NDK via sdkmanager (fastest path on ubuntu-latest)
       - name: Set up Android SDK + NDK
